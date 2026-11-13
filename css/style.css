@@ -27,3 +27,8 @@ table{width:100%;border-collapse:collapse;font-size:.9rem}td,th{text-align:left;
 svg text{fill:var(--tx)}
 @media print{nav,.side,.noprint{display:none!important}.dash{display:block}.sec{display:block!important}}
 nav a{text-decoration:none}
+.anchor{border-left:3px solid var(--gold);padding:4px 0 4px 14px;margin:14px 0 4px}.anchor p{margin:.3em 0 0}
+.two{display:grid;gap:4px 16px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.card ul{padding-left:1.2em;margin:.4em 0}.card li{margin:.25em 0}
+details.card summary{cursor:pointer}
+.card h3+p.mut{margin-top:-.3em}
