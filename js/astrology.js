@@ -1,4 +1,7 @@
-const $=s=>document.querySelector(s);
+/* =====================================================================
+   SELAH — Birth chart: astronomy calculations and chart wheel
+   Needs js/common.js (and js/report-content.js on report.html).
+   ===================================================================== */
 const SG=['Aries','Taurus','Gemini','Cancer','Leo','Virgo','Libra','Scorpio','Sagittarius','Capricorn','Aquarius','Pisces'],SY='♈♉♊♋♌♍♎♏♐♑♒♓';
 const EL=['Fire','Earth','Air','Water'],MO=['Cardinal','Fixed','Mutable'];
 const PL=[['Sun','☉','core identity and vitality'],['Moon','☽','emotional needs and instinctive responses'],['Mercury','☿','thinking and communication'],['Venus','♀','values, affection and attraction'],['Mars','♂','drive, assertion and effort'],['Jupiter','♃','growth, optimism and meaning'],['Saturn','♄','discipline, limits and responsibility'],['Uranus','♅','change and independence'],['Neptune','♆','imagination and idealism'],['Pluto','♇','transformation and intensity']];
@@ -42,7 +45,6 @@ Manila|Philippines|14.5995|120.9842|Asia/Manila
 Sydney|Australia|-33.8688|151.2093|Australia/Sydney
 Auckland|New Zealand|-36.8485|174.7633|Pacific/Auckland
 Reykjavik|Iceland|64.1466|-21.9426|Atlantic/Reykjavik`.split('\n').map(l=>{const a=l.split('|');return{n:a[0],c:a[1],lat:+a[2],lon:+a[3],tz:a[4]}});
-const SC=[['Galatians 2:20','Paul describes a life where Christ, not self-image, is at the center.','Where am I living from an old identity instead of from Christ?'],['Romans 8:29','God’s aim is for believers to be conformed to the image of His Son.','Which Christlike quality is God shaping in me now?'],['2 Corinthians 3:18','Believers are transformed progressively as they look to the Lord.','What am I beholding that forms me most?'],['Galatians 5:22–23','The fruit of the Spirit describes character that grows, not a fixed temperament.','Which fruit do I most need to cultivate this season?'],['Philippians 2:5','Christ’s humble, serving mindset is the pattern for our attitudes.','Where could humility change how I respond?'],['John 15:5','Fruitfulness comes from abiding in Christ.','What helps me abide, and what distracts me?'],['Proverbs 3:5–6','Trust God rather than relying only on our own understanding.','Where am I leaning on my own understanding?'],['James 1:5','God gives wisdom generously to those who ask.','What decision do I need to bring to God for wisdom?']];
 const DISC=`<div class="card disc"><h3>A Note on Faith, Identity & Self-Discovery</h3><p>This platform provides traditional astrological interpretations for informational and self-reflective purposes only. It is not intended to define your identity, determine your destiny, predict your future, or replace your personal convictions.</p><p>As Christians, we recognize that our ultimate example is Jesus Christ. We are called to progressively grow in His likeness, allowing His teachings, character and Word to guide our lives.</p><p>Astrology should never take the place of Scripture, prayer, discernment or our relationship with God. No planetary placement defines who you are or limits who you can become in Christ.</p><p><b>Our identity is not found in the stars, but in Christ.</b></p><p class="mut">Galatians 2:20 | Romans 8:29 | 2 Corinthians 3:18</p></div>`;
 const n360=x=>((x%360)+360)%360,rd=x=>x*Math.PI/180,dg=x=>x*180/Math.PI;
 function tzOff(tz,ms){const p=new Intl.DateTimeFormat('en-US',{timeZone:tz,hourCycle:'h23',year:'numeric',month:'numeric',day:'numeric',hour:'numeric',minute:'numeric',second:'numeric'}).formatToParts(new Date(ms)).reduce((a,x)=>(a[x.type]=+x.value,a),{});return Date.UTC(p.year,p.month-1,p.day,p.hour,p.minute,p.second)-Math.floor(ms/1000)*1000}
@@ -73,44 +75,62 @@ if(c.cu)c.cu.forEach((L,i)=>{const[a,b]=[pt(L,R-26),pt(L,70)],m=pt(L+4,82);s+=`<
 c.asp.forEach(a=>{const[p,q]=[pt(a.a.L,70),pt(a.b.L,70)];s+=`<line x1="${p[0]}" y1="${p[1]}" x2="${q[0]}" y2="${q[1]}" stroke="var(--gold)" stroke-width=".7" opacity="${a.nm=='Square'||a.nm=='Opposition'?.9:.5}" ${a.nm=='Sextile'||a.nm=='Trine'?'stroke-dasharray="3 2"':''}/>`});
 const ps=[...c.pl].sort((a,b)=>a.L-b.L);let last=-99;ps.forEach(p=>{p.D=Math.max(p.L,last+7);last=p.D});
 ps.forEach(p=>{const g=pt(p.D,R-44);s+=`<text x="${g[0]}" y="${g[1]}" font-size="14" text-anchor="middle" dominant-baseline="central" fill="var(--br)">${p.g}</text>`});return s+'</svg>'}
-function tbl(h,rows){return `<div class="wrap"><table><tr>${h.map(x=>`<th>${x}</th>`).join('')}</tr>${rows.map(r=>`<tr>${r.map(x=>`<td>${x}</td>`).join('')}</tr>`).join('')}</table></div>`}
-const bars=(a,l)=>a.map((v,i)=>`<div style="margin:8px 0"><div>${l[i]} <span class="mut">${v}</span></div><div class="bar"><i style="width:${v*10}%"></i></div></div>`).join('');
 
-/* ---------- Page logic (each HTML page sets <body data-page="...">) ---------- */
-let R=null,tab=0;
-const PAGE=document.body.dataset.page;
+/* ---------- Birth chart pages (birth-chart.html and report.html) ---------- */
+let R=null,tab=0,PLACE=null,PLIST=[],ptimer=null;
 function setCur(f){try{sessionStorage.setItem('selah-current',JSON.stringify(f))}catch(e){}}
 function getCur(){try{if(location.hash.startsWith('#f='))return JSON.parse(decodeURIComponent(location.hash.slice(3)))}catch(e){}
 try{return JSON.parse(sessionStorage.getItem('selah-current'))}catch(e){return null}}
 function openReport(f){setCur(f);location.href='report.html#f='+encodeURIComponent(JSON.stringify(f))}
-function draw(){const m=$('#m');
-if(PAGE=='home')m.innerHTML=home();
-else if(PAGE=='report'){if(!R){m.innerHTML='<h2>My Report</h2><p class="mut">No report yet.</p><a class="btn" href="index.html">Get My Chart</a>';return}
-const S=secs(R);m.innerHTML=`<div class="dash"><div class="side noprint">${TABS.map((t,i)=>`<a class="${i==tab?'on':''}" onclick="tab=${i};draw();scrollTo(0,0)">${t}</a>`).join('')}</div><div>${TABS.map((_,i)=>`<div class="sec" style="display:${i==tab?'block':'none'}">${S[i]}</div>`).join('')}${DISC}<div class="noprint"><button class="btn o" onclick="saveR()">Save report locally</button> <button class="btn o" onclick="print()">Print / PDF</button></div></div></div>`;}
-else if(PAGE=='devotionals')m.innerHTML=`<h2>Devotionals</h2>${SC.map(s=>`<div class="card"><b class="gold">${s[0]}</b><p>${s[1]}</p><p class="mut"><i>${s[2]}</i></p></div>`).join('')}`;
-else if(PAGE=='about')m.insertAdjacentHTML('beforeend',DISC)}
-function home(){const dys=[...Array(31)].map((_,i)=>`<option>${i+1}</option>`).join(''),ms=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map((x,i)=>`<option value="${i+1}">${x}</option>`).join('');
-return `<h1>Discover Your<br>Astrological Blueprint</h1><p class="mut" style="max-width:560px">A personalized natal chart and in-depth astrology report for self-understanding, growth, and reflection.</p>
-<div class="grid"><div class="card"><b>Full Natal Chart</b><p class="mut">Planetary placements, houses and aspects.</p></div><div class="card"><b>Personality & Life Themes</b><p class="mut">Traditional interpretations of your placements.</p></div><div class="card"><b>Christ-Centered Reflection</b><p class="mut">Growth through biblical principles.</p></div></div>
-${DISC}<div class="card" id="form"><h3>Your birth information</h3><label>Date of birth</label><div class="row"><select id="d">${dys}</select><select id="mo">${ms}</select><input id="y" type="number" placeholder="Year" min="1900" max="2100"></div>
-<label>Time of birth</label><div class="row"><input id="hh" type="number" placeholder="Hour (1–12)" min="1" max="12"><input id="mi" type="number" placeholder="Minute" min="0" max="59"><select id="ap"><option>AM</option><option>PM</option></select></div>
-<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="unk" style="width:auto"> I don’t know my birth time</label><p class="mut" style="font-size:.85rem">Without a birth time, the Ascendant and house placements are unavailable or unreliable.</p>
-<label>Place of birth (city)</label><input id="city" list="cl" placeholder="Start typing a city…" autocomplete="off"><datalist id="cl">${CITIES.map(c=>`<option value="${c.n}, ${c.c}">`).join('')}</datalist>
-<p class="mut" style="font-size:.8rem">This prototype includes a built-in list of major cities (no live geocoding service is reachable from a published page).</p>
-<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="ack" style="width:auto"> I acknowledge this is informational and self-reflective only, and that my identity is in Christ.</label>
-<div class="err" id="err"></div><button class="btn" onclick="gen()">Generate My Full Report</button> ${localStorage&&0?'':'<button class="btn o" onclick="loadR()">Load saved</button>'}</div>`}
-function gen(){const g=i=>$('#'+i).value,err=t=>{$('#err').textContent=t};
+
+/* Place search: any city or town in the world, via the free Open-Meteo
+   geocoding service (GeoNames data). Falls back to the built-in list offline. */
+const plabel=p=>[p.name,p.admin1&&p.admin1!==p.name?p.admin1:'',p.country].filter(Boolean).join(', ');
+async function searchPlaces(q){const r=await fetch('https://geocoding-api.open-meteo.com/v1/search?count=8&language=en&format=json&name='+encodeURIComponent(q));
+if(!r.ok)throw Error('Place search failed');const j=await r.json();
+return (j.results||[]).filter(x=>x.timezone&&x.timezone!='GMT').map(x=>({name:x.name,admin1:x.admin1||'',country:x.country||'',lat:x.latitude,lon:x.longitude,tz:x.timezone}))}
+function offlinePlaces(q){q=q.toLowerCase().trim();return CITIES.filter(c=>c.n.toLowerCase().startsWith(q)).slice(0,8).map(c=>({name:c.n,admin1:'',country:c.c,lat:c.lat,lon:c.lon,tz:c.tz}))}
+async function findPlaces(text){const parts=text.split(',').map(s=>s.trim()).filter(Boolean),q=parts[0]||'';if(q.length<2)return[];
+let r;try{r=await searchPlaces(q)}catch(e){r=offlinePlaces(q)}
+const rest=parts.slice(1).join(' ').toLowerCase();if(rest){const m=r.filter(p=>rest.split(/\s+/).every(w=>(p.admin1+' '+p.country).toLowerCase().includes(w)));if(m.length)r=m}
+return r}
+function placeInput(){PLACE=null;$('#psel').innerHTML='';const q=$('#city').value.trim();clearTimeout(ptimer);if(q.length<2){$('#plist').innerHTML='';return}
+ptimer=setTimeout(async()=>{$('#plist').innerHTML='<span class="mut small">Searching…</span>';const r=await findPlaces(q);if($('#city').value.trim()!==q)return;PLIST=r;
+$('#plist').innerHTML=r.length?`<span class="mut small">Choose your place:</span>`+r.map((p,i)=>`<button type="button" class="pick" onclick="pickPlace(${i})">${esc(plabel(p))}</button>`).join(''):'<span class="mut small">No places found. Check the spelling, or try a nearby larger town.</span>'},400)}
+function showPlace(p){$('#psel').innerHTML=`✓ <b>${esc(plabel(p))}</b> <span class="mut">· ${p.lat.toFixed(2)}, ${p.lon.toFixed(2)} · time zone ${esc(p.tz)}</span>`}
+function pickPlace(i){PLACE=PLIST[i];$('#city').value=plabel(PLACE);$('#plist').innerHTML='';showPlace(PLACE)}
+
+function chartForm(){const dys=[...Array(31)].map((_,i)=>`<option>${i+1}</option>`).join(''),ms=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map((x,i)=>`<option value="${i+1}">${x}</option>`).join(''),saved=store.get('selah');
+return `<p class="gold eyebrow">✦ Birth Chart</p><h1>Your Birth Chart</h1><p class="mut lead">A map of the sky at the moment you were born, explained in simple words. Astrology is an old tradition of symbols; here it is used only as a mirror for reflection, always pointing back to Christ.</p>
+${saved?`<div class="card"><b>You have a saved chart</b> for ${esc(saved.city)}, ${esc(saved.country)} (${saved.d}/${saved.m}/${saved.y}). <a class="btn o" href="report.html#f=${encodeURIComponent(JSON.stringify(saved))}">Open it</a></div>`:''}
+<div class="card" id="form"><h3>Your birth information</h3><label>Date of birth</label><div class="row"><select id="d">${dys}</select><select id="mo">${ms}</select><input id="y" type="number" inputmode="numeric" placeholder="Year" min="1900" max="2100"></div>
+<label>Time of birth</label><div class="row"><input id="hh" type="number" inputmode="numeric" placeholder="Hour (1–12)" min="1" max="12"><input id="mi" type="number" inputmode="numeric" placeholder="Minute" min="0" max="59"><select id="ap"><option>AM</option><option>PM</option></select></div>
+<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="unk" style="width:auto"> I don’t know my birth time</label><p class="mut small">Without a birth time, the Rising sign and houses can’t be calculated.</p>
+<label for="city">Place of birth</label><input id="city" placeholder="Type your city or town, e.g. Lagos or Paris, Texas" autocomplete="off">
+<div id="plist" class="plist"></div><p id="psel" class="small"></p>
+<p class="mut small">Type any city or town in the world. We look up its location and time zone automatically (place data from GeoNames via Open-Meteo).</p>
+<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="ack" style="width:auto"> I understand this is for reflection only, and that my identity is in Christ.</label>
+<div class="err" id="err"></div><button class="btn" id="go" type="button" onclick="gen()">Generate My Full Report</button></div>${DISC}`}
+
+async function gen(){const g=i=>$('#'+i).value,err=t=>{$('#err').textContent=t},btn=$('#go');
 const d=+g('d'),m=+g('mo'),y=+g('y'),unk=$('#unk').checked;let h=+g('hh'),mi=+g('mi');
 if(!y||y<1900||y>2100)return err('Enter a year between 1900 and 2100.');
 const dt=new Date(Date.UTC(y,m-1,d));if(dt.getUTCDate()!=d)return err('That date does not exist.');
 if(!unk&&(!(h>=1&&h<=12)||!(mi>=0&&mi<=59)||g('hh')===''||g('mi')===''))return err('Enter an hour (1–12) and minute (0–59), or tick “I don’t know my birth time”.');
-const city=CITIES.find(c=>`${c.n}, ${c.c}`==g('city'));if(!city)return err('Please choose a city from the suggestions list.');
-if(!$('#ack').checked)return err('Please acknowledge the faith and identity note first.');
+if(!g('city').trim())return err('Please type your place of birth.');
+if(!$('#ack').checked)return err('Please tick the box to confirm you understand this is for reflection only.');
+btn.disabled=true;err('');btn.textContent='Finding your place…';
+try{let place=PLACE;if(!place){const r=await findPlaces(g('city'));if(!r.length)throw Error('We could not find that place. Check the spelling, or try a nearby larger town.');place=r[0];PLACE=place;$('#city').value=plabel(place);showPlace(place)}
+btn.textContent='Calculating planetary positions…';
+if(typeof Astronomy=='undefined')throw Error('The astronomy library did not load. Check your internet connection and try again.');
 let H=12,M=0,tstr='';if(!unk){H=h%12+($('#ap').value=='PM'?12:0);M=mi;tstr=`${h}:${String(mi).padStart(2,'0')} ${$('#ap').value}`}
-$('#m').innerHTML='<div class="load"><div class="spin"></div><p>Calculating planetary positions…</p></div>';
-setTimeout(()=>{try{if(typeof Astronomy=='undefined')throw Error('The ephemeris library did not load.');
-const f={d,m,y,known:!unk,tstr,city:city.n,country:city.c,lat:city.lat,lon:city.lon,tz:city.tz,utc:toUTC(y,m,d,H,M,city.tz)};build(f);openReport(f)}catch(e){draw();setTimeout(()=>$('#err').textContent='Calculation could not be completed: '+e.message,0)}},700)}
-function saveR(){try{localStorage.setItem('selah',JSON.stringify(R.f));alert('Saved on this device.')}catch(e){alert('Storage unavailable.')}}
-function loadR(){try{const f=JSON.parse(localStorage.getItem('selah'));if(!f)return $('#err').textContent='Nothing saved yet.';openReport(f)}catch(e){$('#err').textContent='Nothing saved yet.'}}
-if(PAGE=='report'){const f=getCur();if(f){try{R=build(f)}catch(e){$('#m').innerHTML='<h2>My Report</h2><div class="err">Calculation could not be completed: '+e.message+'</div>';throw e}}}
+const f={d,m,y,known:!unk,tstr,city:[place.name,place.admin1&&place.admin1!==place.name?place.admin1:''].filter(Boolean).join(', '),country:place.country,lat:place.lat,lon:place.lon,tz:place.tz,utc:toUTC(y,m,d,H,M,place.tz)};
+build(f);openReport(f)}catch(e){err(e.message);btn.disabled=false;btn.textContent='Generate My Full Report'}}
+
+function saveChart(f,c){store.set('selah',f);store.set('selah-chart',{sun:SG[sgn(c.pl[0].L)],moon:SG[sgn(c.pl[1].L)],rise:c.cu?SG[sgn(c.asc)]:null,place:`${f.city}, ${f.country}`,saved:Date.now()})}
+function draw(){const m=$('#m');
+if(PAGE=='chart'){m.innerHTML=chartForm();$('#city').addEventListener('input',placeInput);return}
+if(!R){m.innerHTML='<h2>My Report</h2><p class="mut">No report yet.</p><a class="btn" href="birth-chart.html">Create my birth chart</a>';return}
+const S=secs(R);m.innerHTML=`<div class="dash"><div class="side noprint">${TABS.map((t,i)=>`<a class="${i==tab?'on':''}" onclick="tab=${i};draw();scrollTo(0,0)">${t}</a>`).join('')}</div><div>${TABS.map((_,i)=>`<div class="sec" style="display:${i==tab?'block':'none'}">${S[i]}</div>`).join('')}${DISC}<div class="noprint"><a class="btn o" href="results.html">✓ Saved to My Results</a> <button class="btn o" onclick="print()">Print / PDF</button> <a class="btn o" href="birth-chart.html">New chart</a></div></div></div>`}
+if(PAGE=='report'){const f=getCur();if(f){try{R=build(f);saveChart(f,R)}catch(e){$('#m').innerHTML='<h2>My Report</h2><div class="err">Calculation could not be completed: '+esc(e.message)+'</div>';throw e}}}
 draw();

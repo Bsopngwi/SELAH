@@ -160,9 +160,7 @@ Mutable:{s:'Gemini, Virgo, Sagittarius, Pisces',d:'Mutable signs are adapters. T
 
 /* ---------- Small helpers ---------- */
 const ord=n=>n+(['th','st','nd','rd'][(n%100>10&&n%100<14)?0:n%10]||'th');
-const li=a=>a.map(x=>`<li>${x}</li>`).join('');
 const sOf=L=>SIGNS[sgn(L)];
-const anchor=(v,vt,title)=>`<div class="anchor"><b class="gold">✝ ${title||'Christ at the center'}</b><p>${vt} <span class="mut">(${v})</span></p></div>`;
 const RETRO='Retrograde (℞) means that, seen from Earth, the planet looked like it was moving backward in the sky when you were born. It is not really moving backward; it is an optical effect, like a slower car seeming to drift backward when you pass it. Astrologers read retrograde planets as working in a more inward, reflective way: you may think things over more before acting on them.';
 const GENNOTE='This is a “generational” planet. It moves so slowly that everyone born within several years of you shares this sign, so it says more about your generation than about you personally. Its house position (if known) is the more personal part.';
 
